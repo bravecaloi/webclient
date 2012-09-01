@@ -8,6 +8,8 @@
 ** client.c -- a stream socket client demo
 */
 
+#include "libs/socketTools.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,13 +26,12 @@
 
 int main(int argc, char *argv[])
 {
-    int sockfd, numbytes;
-    char buf[MAXDATASIZE];
+    int sockfd;
     struct hostent *he;
     struct sockaddr_in their_addr; // connector's address information
 
-    if (argc != 2) {
-        fprintf(stderr,"usage: client hostname\n");
+    if (argc != 3) {
+        fprintf(stderr,"usage: client hostname, page\n");
         exit(1);
     }
 
@@ -54,14 +55,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    if ((numbytes=recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
+    char *page = argv[2];
+    tcp_writeText(sockfd, page);
 
-    buf[numbytes] = '\0';
-
-    printf("Received: %s",buf);
+    char *text;
+    tcp_readText(sockfd, text, 500);
+    puts(text);
 
     close(sockfd);
 
