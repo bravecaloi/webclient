@@ -8,7 +8,7 @@
 ** client.c -- a stream socket client demo
 */
 
-#include "libs/socketTools.h"
+#include "../src/controller/socketTools.h"
 
 #include <stdio.h>
 #include <stdlib.h>
