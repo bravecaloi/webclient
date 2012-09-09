@@ -26,57 +26,20 @@
 
 char *getRequest(char *page);
 
-int tcp_socket(int sockfd) {
-	//    if ((he=gethostbyname(argv[1])) == NULL) {  // get the host info
-	//        perror("gethostbyname");
-	//        exit(1);
-	//    }
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("socket");
-		exit(1);
-	}
-	return sockfd;
-}
-
-void tcp_connect(struct sockaddr_in* their_addr, int sockfd, struct hostent* he) {
-	their_addr.sin_family = AF_INET;
-	their_addr.sin_port = htons(PORT);
-	their_addr.sin_addr = *((struct in_addr *) he->h_addr);
-	memset(&(their_addr->sin_zero), '\0', 8); // zero the rest of the struct
-
-	if (connect(sockfd, (struct sockaddr *) &their_addr, sizeof(struct sockaddr)) == TCP_ERROR) {
-		perror("connect");
-		exit(1);
-	}
-}
-
 int main(int argc, char *argv[])
 {
     int sockfd;
-    struct hostent *he;
-    struct sockaddr_in their_addr; // connector's address information
 
-    char *request = getRequest(argv[1]);
-    puts(request);
+	char* ip = argv[1];
+	char* page = argv[2];
 
-//    if ((he=gethostbyname(argv[1])) == NULL) {  // get the host info
-//        perror("gethostbyname");
-//        exit(1);
-//    }
+	char *request = getRequest(page);
 
-
-    sockfd = tcp_socket(sockfd);
-
-    he = gethostbyname("localhost");
-	tcp_connect(&their_addr, sockfd, he);
-
+    sockfd = tcp_socket();
+	tcp_connect(sockfd, ip, PORT);
     tcp_writeText(sockfd, request);
 
-    char *text;
-    tcp_readText(sockfd, text, 500);
-    puts(text);
-
-    free(request);
+    tcp_printWebPage(sockfd);
 
     close(sockfd);
 

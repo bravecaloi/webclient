@@ -19,75 +19,38 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <stdbool.h>
 
 /**
  * The return value from socket is the file descriptor for the new socket, or -1 in case of error.
- * And sets the socket option optname at level level.
  */
 int tcp_socket(void) {
-	int yes = 1;
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-	if (sockfd == TCP_ERROR) {
-		perror("[SOCKET] - Unable to create socket.");
-		return EXIT_FAILURE;
-	}
-
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-		perror("[SOCKET] - Unable set the socket option optname.");
-		return EXIT_FAILURE;
-	}
+    if (sockfd == TCP_ERROR) {
+        perror("socket");
+    }
 
 	return sockfd;
 }
 
-/**
- * Assigns an address to the socket.
- */
-int tcp_bind(int socket, short int port) {
-	struct sockaddr_in my_addr;    // my address information
+int tcp_connect(int sockfd, char *ip, int port) {
+	struct sockaddr_in their_addr;
 
-	my_addr.sin_family = AF_INET;         // host byte order
-	my_addr.sin_port = htons(port);     // short, network byte order
-	my_addr.sin_addr.s_addr = INADDR_ANY; // automatically fill with my IP
-	memset(&(my_addr.sin_zero), '\0', 8); // zero the rest of the struct
+	their_addr.sin_family = AF_INET;
+	their_addr.sin_port = htons(port);
+	their_addr.sin_addr = *((struct in_addr *) gethostbyname(ip)->h_addr);
+	memset(&(their_addr.sin_zero), '\0', 8); // zero the rest of the struct
 
-	if (bind(socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) == TCP_ERROR) {
-		perror("[BIND] - Unable to bind the socket to port");
-		return EXIT_FAILURE;
+	int connection = connect(sockfd, (struct sockaddr*) &their_addr, sizeof(struct sockaddr));
+	if (connection == TCP_ERROR) {
+		perror("connect");
 	}
 
 	return EXIT_SUCCESS;
-}
-
-/**
- * Enables the socket socket to accept connections, thus making it a server socket.
- */
-int tcp_listen(int socket, int backlog) {
-	if (listen(socket, backlog) == TCP_ERROR) {
-		perror("listen");
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
-}
-
-/**
- * Await a connection on socket FD.
- */
-int tcp_accept(int socketServer) {
-	struct sockaddr_in their_addr; // connector's address information
-	int sin_size;
-
-	int socketClient;
-
-	sin_size = sizeof(struct sockaddr_in);
-	if ((socketClient = accept(socketServer, (struct sockaddr *) &their_addr, &sin_size)) == TCP_ERROR) {
-		perror("accept");
-	}
-	printf("server: got connection from %s\n", inet_ntoa(their_addr.sin_addr));
-
-	return socketClient;
 }
 
 /**
@@ -100,6 +63,88 @@ int tcp_writeText(int socket, char *text) {
 	}
 
 	return EXIT_SUCCESS;
+}
+
+/**
+ * Prints the raw text to the std output
+ */
+int tcp_printIS(int socket) {
+	int max = 2000;
+	char buffer[max];
+
+	int nbytes = max;
+
+	while(nbytes == max){
+		nbytes = read(socket, buffer, max);
+
+		if (nbytes == TCP_ERROR && errno == EINTR) {
+			tcp_printIS(socket);
+		}
+
+		printf("%s", buffer);
+	}
+
+	return EXIT_SUCCESS;
+}
+
+/**
+ * Prints the IS parsing as browser to the std output
+ */
+int tcp_printWebPage(int socket) {
+	int max = 2000;
+	char buffer[max];
+
+	int nbytes = max;
+
+	while(nbytes == max){
+		nbytes = read(socket, buffer, max);
+
+		if (nbytes == TCP_ERROR && errno == EINTR) {
+			tcp_printIS(socket);
+		}
+
+		parseParagraph(buffer, nbytes);
+	}
+
+	printf("\n");
+	return EXIT_SUCCESS;
+}
+
+int print = false;
+void parseParagraph(char *buffer, int size){
+	int i;
+	for (i = 0; i < size - 3; ++i) {
+
+		if(startParagraph(buffer[i], buffer[i+1],buffer[i+2])){
+			print = true;
+			i = i + 3;
+			printf("\n");
+		}
+
+		if(endParagraph(buffer[i], buffer[i+1],buffer[i+2])){
+			print = false;
+		}
+
+		if(print){
+			printf("%c", buffer[i]);
+		}
+	}
+}
+
+int startParagraph(char a, char b, char c){
+	if(a == '<' && b == 'p' && c == '>'){
+		return true;
+	}
+
+	return false;
+}
+
+int endParagraph(char a, char b, char c){
+	if(a == '<' && b == '/' && c == 'p'){
+		return true;
+	}
+
+	return false;
 }
 
 /**
