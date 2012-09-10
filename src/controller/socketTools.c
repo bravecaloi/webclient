@@ -96,6 +96,11 @@ int tcp_printWebPage(int socket) {
 
 	int nbytes = max;
 
+	int isImage = false;
+	int header = true;
+
+	FILE *fp;
+
 	while(nbytes == max){
 		nbytes = read(socket, buffer, max);
 
@@ -103,7 +108,24 @@ int tcp_printWebPage(int socket) {
 			tcp_printIS(socket);
 		}
 
-		parseParagraph(buffer, nbytes);
+		if(strstr(buffer, "Content-Type: image/")){
+			isImage = true;
+		}
+
+		if(isImage){
+			fp = fopen("/home/dev/Desktop/image.jpg", "ab");
+
+			if(header){
+				fwrite(strstr(buffer, "\n"), sizeof(char), nbytes, fp);
+				header = false;
+			}else{
+				fwrite(buffer, sizeof(char), nbytes, fp);
+			}
+
+			fclose(fp);
+		}else{
+			parseParagraph(buffer, nbytes);
+		}
 	}
 
 	printf("\n");
