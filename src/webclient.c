@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 	tcp_connect(sockfd, ip, PORT);
 	tcp_writeText(sockfd, request);
 
-	tcp_printWebPage(sockfd);
+	tcp_pocessServerResponse(sockfd);
 
 	close(sockfd);
 

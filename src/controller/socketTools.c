@@ -24,15 +24,19 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 
+enum {
+	text, image
+} filetype_t;
+
 /**
  * The return value from socket is the file descriptor for the new socket, or -1 in case of error.
  */
 int tcp_socket(void) {
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sockfd == TCP_ERROR) {
-        perror("socket");
-    }
+	if (sockfd == TCP_ERROR) {
+		perror("socket");
+	}
 
 	return sockfd;
 }
@@ -65,104 +69,114 @@ int tcp_writeText(int socket, char *text) {
 	return EXIT_SUCCESS;
 }
 
-/**
- * Prints the raw text to the std output
- */
-int tcp_printIS(int socket) {
-	int max = 2000;
-	char buffer[max];
-
-	int nbytes = max;
-
-	while(nbytes == max){
-		nbytes = read(socket, buffer, max);
-
-		if (nbytes == TCP_ERROR && errno == EINTR) {
-			tcp_printIS(socket);
-		}
-
-		printf("%s", buffer);
-	}
-
-	return EXIT_SUCCESS;
-}
+int header = true;
 
 /**
  * Prints the IS parsing as browser to the std output
  */
-int tcp_printWebPage(int socket) {
+int tcp_pocessServerResponse(int socket) {
 	int max = 2000;
-	char buffer[max];
+	char *buffer = malloc(max);
+
+	FILE *fp = NULL;
+
+	int filetype;
 
 	int nbytes = max;
-
-	int isImage = false;
-	int header = true;
-
-	FILE *fp;
-
-	while(nbytes == max){
-		nbytes = read(socket, buffer, max);
+	while ((nbytes = read(socket, buffer, max)) != 0) {
 
 		if (nbytes == TCP_ERROR && errno == EINTR) {
-			tcp_printIS(socket);
+			tcp_pocessServerResponse(socket);
 		}
 
-		if(strstr(buffer, "Content-Type: image/")){
-			isImage = true;
+		char *headerSize = getHeaderSize(buffer, &nbytes);
+		if ( headerSize != 0) {
+			filetype = getFileType(buffer);
+			buffer = headerSize;
 		}
 
-		if(isImage){
-			fp = fopen("/home/dev/Desktop/image.jpg", "ab");
-
-			if(header){
-				fwrite(strstr(buffer, "\n"), sizeof(char), nbytes, fp);
-				header = false;
-			}else{
-				fwrite(buffer, sizeof(char), nbytes, fp);
-			}
-
-			fclose(fp);
-		}else{
-			parseParagraph(buffer, nbytes);
+		switch (filetype) {
+		case text:
+			printWbePage(buffer, nbytes);
+			break;
+		case image:
+			if(fp == NULL){
+					fp = fopen("/home/ivan/Desktop/image.jpg", "w+");
+				}
+			fwrite(buffer, sizeof(char), nbytes, fp);
+			break;
+		default:
+			break;
 		}
+
+		buffer = malloc(max);
 	}
 
-	printf("\n");
+	free(buffer);
+	fclose(fp);
+
 	return EXIT_SUCCESS;
 }
 
+/**
+ * Gets the file type from the header, and trims the header
+ */
+int getFileType(char *buffer) {
+
+	if (strstr(buffer, "Content-Type: image/")) {
+		return image;
+	}
+
+	return text;
+}
+
+char *firstLine = "HTTP/1.0 302 Found\n";
+
+char* getHeaderSize(char *buffer, int *nbytes) {
+	int i;
+	for (i = 0; i < strlen(firstLine); ++i) {
+		if (buffer[i] != firstLine[i]) {
+			return 0;
+		}
+	}
+
+	char *p = strstr(buffer, "\n\n") + 2;
+	*nbytes = *nbytes - (p - buffer);
+
+	return p;
+}
+
 int print = false;
-void parseParagraph(char *buffer, int size){
+void printWbePage(char *buffer, int size) {
 	int i;
 	for (i = 0; i < size - 3; ++i) {
 
-		if(startParagraph(buffer[i], buffer[i+1],buffer[i+2])){
+		if (startParagraph(buffer[i], buffer[i + 1], buffer[i + 2])) {
 			print = true;
 			i = i + 3;
 			printf("\n");
 		}
 
-		if(endParagraph(buffer[i], buffer[i+1],buffer[i+2])){
+		if (endParagraph(buffer[i], buffer[i + 1], buffer[i + 2])) {
 			print = false;
 		}
 
-		if(print){
+		if (print) {
 			printf("%c", buffer[i]);
 		}
 	}
 }
 
-int startParagraph(char a, char b, char c){
-	if(a == '<' && b == 'p' && c == '>'){
+int startParagraph(char a, char b, char c) {
+	if (a == '<' && b == 'p' && c == '>') {
 		return true;
 	}
 
 	return false;
 }
 
-int endParagraph(char a, char b, char c){
-	if(a == '<' && b == '/' && c == 'p'){
+int endParagraph(char a, char b, char c) {
+	if (a == '<' && b == '/' && c == 'p') {
 		return true;
 	}
 
