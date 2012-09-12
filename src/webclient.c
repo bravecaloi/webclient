@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
 	close(sockfd);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 char *getRequest(char *page) {

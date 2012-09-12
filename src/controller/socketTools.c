@@ -71,6 +71,14 @@ int tcp_writeText(int socket, char *text) {
 
 int header = true;
 
+FILE* saveImage(int nbytes, FILE* fp, char* buffer) {
+	if (fp == NULL ) {
+		fp = fopen("/home/ivan/Desktop/image.jpg", "w+");
+	}
+	fwrite(buffer, sizeof(char), nbytes, fp);
+	return fp;
+}
+
 /**
  * Prints the IS parsing as browser to the std output
  */
@@ -100,11 +108,9 @@ int tcp_pocessServerResponse(int socket) {
 			printWbePage(buffer, nbytes);
 			break;
 		case image:
-			if(fp == NULL){
-					fp = fopen("/home/ivan/Desktop/image.jpg", "w+");
-				}
-			fwrite(buffer, sizeof(char), nbytes, fp);
+			fp = saveImage(nbytes, fp, buffer);
 			break;
+
 		default:
 			break;
 		}
@@ -113,7 +119,10 @@ int tcp_pocessServerResponse(int socket) {
 	}
 
 	free(buffer);
-	fclose(fp);
+
+	if(fp != NULL){
+		fclose(fp);
+	}
 
 	return EXIT_SUCCESS;
 }
@@ -159,6 +168,7 @@ void printWbePage(char *buffer, int size) {
 
 		if (endParagraph(buffer[i], buffer[i + 1], buffer[i + 2])) {
 			print = false;
+			printf("\n");
 		}
 
 		if (print) {
